@@ -1,0 +1,225 @@
+{
+  "info": {
+    "name": "Seller API Collection",
+    "_postman_id": "seller-api-collection-001",
+    "description": "Complete Postman Collection for Seller Auth + Seller Management + Admin APIs",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Seller Auth",
+      "item": [
+        {
+          "name": "Seller Login (Send OTP)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobile\": \"9999999999\"\n}"
+            },
+            "url": "{{base_url}}/seller/login"
+          }
+        },
+        {
+          "name": "Seller Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobile\": \"9999999999\",\n  \"otp\": \"123456\",\n  \"txnId\": \"{{txnId}}\"\n}"
+            },
+            "url": "{{base_url}}/seller/verify-otp"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Seller Profile (Auth Required)",
+      "item": [
+        {
+          "name": "Get Seller Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{seller_token}}" }
+            ],
+            "url": "{{base_url}}/seller/profile"
+          }
+        },
+        {
+          "name": "Edit Seller Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{seller_token}}" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "fullName", "value": "John Doe", "type": "text" },
+                { "key": "shopName", "value": "John Store", "type": "text" },
+                { "key": "address", "value": "Mumbai", "type": "text" },
+                { "key": "city", "value": "Mumbai", "type": "text" },
+                { "key": "pincode", "value": "400001", "type": "text" },
+                {
+                  "key": "ownerImage",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "shopLogo",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "shopImages",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": "{{base_url}}/seller/profile"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Seller KYC",
+      "item": [
+        {
+          "name": "Update Seller KYC (GST, Aadhaar, PAN)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{seller_token}}" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "gstNumber", "value": "22AAAAA0000A1Z5", "type": "text" },
+                { "key": "aadhaarNumber", "value": "123412341234", "type": "text" },
+                { "key": "panNumber", "value": "ABCDE1234F", "type": "text" },
+                {
+                  "key": "gstCertificate",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "aadhaarImage",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "panImage",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": "{{base_url}}/seller/kyc"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Seller Bank Details",
+      "item": [
+        {
+          "name": "Update Bank Details",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{seller_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountHolder\": \"John Doe\",\n  \"accountNumber\": \"123456789012\",\n  \"ifsc\": \"HDFC0001234\",\n  \"bankName\": \"HDFC Bank\",\n  \"upi\": \"john@upi\",\n  \"upiVerified\": true\n}"
+            },
+            "url": "{{base_url}}/seller/bank"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Seller Shop Timing",
+      "item": [
+        {
+          "name": "Update Shop Timing",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{seller_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"openingTime\": \"09:00 AM\",\n  \"closingTime\": \"09:00 PM\",\n  \"weeklyOff\": \"Sunday\"\n}"
+            },
+            "url": "{{base_url}}/seller/shop-timing"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Seller Management",
+      "item": [
+        {
+          "name": "Admin - List Sellers",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/seller/admin/list"
+          }
+        },
+        {
+          "name": "Admin - Get Seller Details",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/seller/admin/{{sellerId}}"
+          }
+        },
+        {
+          "name": "Admin - Approve Seller",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/seller/admin/{{sellerId}}/approve"
+          }
+        },
+        {
+          "name": "Admin - Reject Seller",
+          "request": {
+            "method": "PUT",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Incomplete KYC\"\n}"
+            },
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/seller/admin/{{sellerId}}/reject"
+          }
+        },
+        {
+          "name": "Admin - Toggle Seller Status",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/seller/admin/{{sellerId}}/toggle-status"
+          }
+        },
+        {
+          "name": "Admin - Delete Seller (Soft Delete)",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/seller/admin/{{sellerId}}"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3000/api" },
+    { "key": "seller_token", "value": "" },
+    { "key": "txnId", "value": "" },
+    { "key": "sellerId", "value": "" }
+  ]
+}
