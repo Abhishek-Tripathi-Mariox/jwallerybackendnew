@@ -28,6 +28,22 @@ const UserSchema = new Schema(
       type: String,
       default: "",
     },
+    address: {
+      type: String,
+      default: "",
+    },
+    city: {
+      type: String,
+      default: "",
+    },
+    pincode: {
+      type: String,
+      default: "",
+    },
+    country: {
+      type: String,
+      default: "India",
+    },
     countryCode: {
       type: String,
       required: [true, "Country code is required!"],
