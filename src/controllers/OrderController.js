@@ -4,7 +4,18 @@ const RazorpayService = require("../services/RazorpayService");
 const UserAddressService = require("../services/UserAddressService");
 const NotificationService = require("../services/NotificationService");
 const ChargeConfigService = require("../services/ChargeConfigService");
+const User = require("../models/User");
 var ObjectId = require("mongoose").Types.ObjectId;
+
+// Loyalty program — award 1 point per ₹100 spent. Safe to fail silently.
+const awardLoyaltyPoints = async (userId, amount) => {
+  try {
+    const points = Math.floor(Number(amount || 0) / 100);
+    if (points > 0) {
+      await User.findByIdAndUpdate(userId, { $inc: { loyaltyPoints: points } });
+    }
+  } catch (e) {}
+};
 
 const safeNotify = async (payload) => {
   try {
@@ -127,6 +138,9 @@ module.exports = () => {
       // Clear cart
       await CartService().clearCart(userId);
 
+      // Award loyalty points for the purchase
+      await awardLoyaltyPoints(userId, order.grandTotal);
+
       await safeNotify({
         userId,
         type: "order",
@@ -177,6 +191,9 @@ module.exports = () => {
       razorpayPaymentId,
       razorpaySignature,
     });
+
+    // Award loyalty points once payment is confirmed
+    await awardLoyaltyPoints(userId, updatedOrder?.grandTotal);
 
     await safeNotify({
       userId,

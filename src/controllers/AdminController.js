@@ -2,6 +2,7 @@ const Category = require("../models/Catagory");
 const Product = require("../models/Product");
 const User = require("../models/User");
 const UserOrders = require("../models/UserOrders");
+const Cart = require("../models/Cart");
 const Banners = require("../models/Banners");
 const CustomerReviewService = require("../services/CustomerReviewService");
 const SubCategoryService = require("../services/SubCategoryService");
@@ -436,7 +437,7 @@ module.exports = () => {
   // ==================== USERS ====================
 
   const getUsers = async (req, res, next) => {
-    const { page = 1, limit = 10, search = "", status } = req.query;
+    const { page = 1, limit = 10, search = "", status, city = "" } = req.query;
     const query = { isDeleted: false };
     if (search) {
       query.$or = [
@@ -447,6 +448,8 @@ module.exports = () => {
     }
     if (status === "active") query.isActive = true;
     if (status === "inactive") query.isActive = false;
+    // Customer location filter (by city)
+    if (city) query.city = { $regex: RegexEscape(city), $options: "i" };
 
     const [users, total] = await Promise.all([
       User.find(query)
@@ -480,6 +483,42 @@ module.exports = () => {
     user.isActive = isActive !== undefined ? isActive : !user.isActive;
     await user.save();
     req.rData = { isActive: user.isActive };
+    next();
+  };
+
+  // "Added but Not Bought" — carts that still hold items (products a customer
+  // added but hasn't purchased yet). Useful for follow-up / abandoned-cart nudges.
+  const getAbandonedCarts = async (req, res, next) => {
+    const { page = 1, limit = 20 } = req.query;
+    const query = { "items.0": { $exists: true } };
+    const [carts, total] = await Promise.all([
+      Cart.find(query)
+        .populate("userId", "fullName email mobileNumber city")
+        .populate("items.productId", "productName productImages discountPrice price")
+        .sort({ updatedAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(Number(limit))
+        .lean(),
+      Cart.countDocuments(query),
+    ]);
+    // Keep only carts whose user still exists; flag those with no orders placed.
+    const result = [];
+    for (const c of carts) {
+      if (!c.userId) continue;
+      const orderCount = await UserOrders.countDocuments({
+        userId: c.userId._id,
+        isDeleted: false,
+      });
+      result.push({
+        cartId: c._id,
+        user: c.userId,
+        itemCount: c.items.length,
+        items: c.items,
+        updatedAt: c.updatedAt,
+        hasNeverOrdered: orderCount === 0,
+      });
+    }
+    req.rData = { page: Number(page), limit: Number(limit), total, carts: result };
     next();
   };
 
@@ -1022,6 +1061,7 @@ module.exports = () => {
     getUsers,
     getUserById,
     toggleUserStatus,
+    getAbandonedCarts,
     getOrders,
     getOrderById,
     updateOrderStatus,

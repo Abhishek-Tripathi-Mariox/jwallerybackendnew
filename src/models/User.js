@@ -68,6 +68,11 @@ const UserSchema = new Schema(
       type: Boolean,
       default: true,
     },
+    // Loyalty program — points earned from purchases.
+    loyaltyPoints: {
+      type: Number,
+      default: 0,
+    },
     location: {
       type: { type: String, enum: ["Point"], default: "Point" },
       coordinates: { type: [Number], default: [0, 0] }, // [long, lat]

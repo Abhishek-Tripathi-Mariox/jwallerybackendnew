@@ -234,6 +234,14 @@ adminRouter.get(
   ResponseMiddleware,
 );
 
+// "Added but Not Bought" — abandoned carts list
+adminRouter.get(
+  "/abandoned-carts",
+  AuthMiddleware().verifyAdminToken,
+  ErrorHandlerMiddleware(AdminController().getAbandonedCarts),
+  ResponseMiddleware,
+);
+
 adminRouter.get(
   "/users/:id",
   AuthMiddleware().verifyAdminToken,
