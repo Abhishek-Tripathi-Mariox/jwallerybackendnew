@@ -355,14 +355,16 @@ module.exports = () => {
         chatBotMessages = [];
       }
 
+      // Admin-saved values take priority; fall back to .env so support contact
+      // works out of the box (call / WhatsApp / email).
       req.rData = {
-        phone: credentials.phone || "",
-        email: credentials.email || "",
-        whatsapp: credentials.whatsapp || "",
-        address: credentials.address || "",
-        workingHours: credentials.workingHours || "",
+        phone: credentials.phone || process.env.SUPPORT_PHONE || "",
+        email: credentials.email || process.env.SUPPORT_EMAIL || "",
+        whatsapp: credentials.whatsapp || process.env.SUPPORT_WHATSAPP || "",
+        address: credentials.address || process.env.SUPPORT_ADDRESS || "",
+        workingHours: credentials.workingHours || process.env.SUPPORT_WORKING_HOURS || "",
         chatBotMessages,
-        isActive: config ? !!config.isActive : false,
+        isActive: config ? !!config.isActive : (!!process.env.SUPPORT_PHONE || !!process.env.SUPPORT_EMAIL),
       };
       req.msg = "success";
     } catch (error) {
