@@ -84,6 +84,9 @@ module.exports = () => {
           $project: {
             productName: 1,
             productImages: 1,
+            rotationImages: 1,
+            model3dUrl: 1,
+            arModelUrl: 1,
             descriptionImages: 1,
             description: 1,
             features: 1,

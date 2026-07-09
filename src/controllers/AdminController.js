@@ -346,6 +346,29 @@ module.exports = () => {
       }
     }
 
+    // Handle 360° turntable frames — uploaded in the order the admin
+    // selected them, which becomes the playback order in the viewer.
+    if (req.files && req.files.rotationImages) {
+      const files = Array.isArray(req.files.rotationImages)
+        ? req.files.rotationImages
+        : [req.files.rotationImages];
+      productData.rotationImages = [];
+      for (let i = 0; i < files.length; i++) {
+        const result = await uploadFileToAws(files[i]);
+        productData.rotationImages.push({ url: result.images, order: i });
+      }
+    }
+
+    // Handle 3D/AR model files
+    if (req.files && req.files.model3d) {
+      const result = await uploadFileToAws(req.files.model3d);
+      productData.model3dUrl = result.images;
+    }
+    if (req.files && req.files.arModel) {
+      const result = await uploadFileToAws(req.files.arModel);
+      productData.arModelUrl = result.images;
+    }
+
     const product = await Product.create(productData);
     req.rData = product;
     req.msg = "success";
@@ -400,6 +423,26 @@ module.exports = () => {
         const result = await uploadFileToAws(file);
         update.productImages.push({ url: result.images });
       }
+    }
+
+    if (req.files && req.files.rotationImages) {
+      const files = Array.isArray(req.files.rotationImages)
+        ? req.files.rotationImages
+        : [req.files.rotationImages];
+      update.rotationImages = [];
+      for (let i = 0; i < files.length; i++) {
+        const result = await uploadFileToAws(files[i]);
+        update.rotationImages.push({ url: result.images, order: i });
+      }
+    }
+
+    if (req.files && req.files.model3d) {
+      const result = await uploadFileToAws(req.files.model3d);
+      update.model3dUrl = result.images;
+    }
+    if (req.files && req.files.arModel) {
+      const result = await uploadFileToAws(req.files.arModel);
+      update.arModelUrl = result.images;
     }
 
     const product = await Product.findByIdAndUpdate(req.params.id, update, {

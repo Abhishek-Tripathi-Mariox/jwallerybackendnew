@@ -27,6 +27,22 @@ const ProductsSchema = new Schema(
       },
     ],
 
+    // Ordered turntable frames (e.g. 24-36 shots around the product) that
+    // power the 360° viewer on the product page. Optional — products
+    // without these just don't show the 360° control.
+    rotationImages: [
+      {
+        url: String,
+        order: Number,
+      },
+    ],
+
+    // 3D/AR model files. model3dUrl (.glb) drives the in-browser 3D viewer
+    // and Android/WebXR AR; arModelUrl (.usdz) is the iOS-only AR Quick Look
+    // variant — both optional, and rendered via <model-viewer>.
+    model3dUrl: { type: String, default: "" },
+    arModelUrl: { type: String, default: "" },
+
     // ---------------- VARIANTS ----------------
     colors: [
       {
