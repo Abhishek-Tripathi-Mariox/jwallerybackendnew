@@ -163,24 +163,55 @@ module.exports = () => {
   };
 
   /**
-   * Update payment status
+   * Atomically flip an order from "not paid" to "paid". The paymentStatus:{$ne:"paid"}
+   * guard makes this safe to call twice for the same order (client verify call racing
+   * the Razorpay webhook, or a client retry) — the second call is a no-op and returns
+   * null, so callers know not to re-award loyalty points / re-notify.
    */
-  const updatePaymentStatus = (orderId, paymentData) => {
-    return new Promise((resolve, reject) => {
-      UserOrders.findByIdAndUpdate(
-        orderId,
-        {
-          paymentStatus: paymentData.status,
-          razorpayOrderId: paymentData.razorpayOrderId,
-          razorpayPaymentId: paymentData.razorpayPaymentId,
-          razorpaySignature: paymentData.razorpaySignature,
-          paidAt: paymentData.status === "paid" ? new Date() : null,
-        },
-        { new: true },
-      )
-        .then(resolve)
-        .catch(reject);
-    });
+  const markOrderPaid = (filter, { razorpayOrderId, razorpayPaymentId, razorpaySignature }) => {
+    return UserOrders.findOneAndUpdate(
+      { ...filter, paymentStatus: { $ne: "paid" } },
+      {
+        paymentStatus: "paid",
+        razorpayOrderId,
+        razorpayPaymentId,
+        razorpaySignature: razorpaySignature || "",
+        paidAt: new Date(),
+      },
+      { new: true },
+    );
+  };
+
+  /**
+   * Mark a still-pending order's payment as failed. Only transitions from
+   * "pending" so it can never clobber an order a later/earlier event already
+   * marked paid (Razorpay can fire failed for an abandoned retry attempt).
+   */
+  const markOrderPaymentFailed = (razorpayOrderId) => {
+    return UserOrders.findOneAndUpdate(
+      { razorpayOrderId, paymentStatus: "pending" },
+      { paymentStatus: "failed" },
+      { new: true },
+    );
+  };
+
+  /**
+   * Record a refund's outcome on the order. Only flips paymentStatus to
+   * "refunded" once Razorpay reports the refund as fully processed.
+   */
+  const recordRefund = (orderId, { refundId, amount, status }) => {
+    return UserOrders.findByIdAndUpdate(
+      orderId,
+      {
+        refundId: refundId || "",
+        refundAmount: amount,
+        refundStatus: status,
+        ...(status === "processed"
+          ? { refundedAt: new Date(), paymentStatus: "refunded" }
+          : {}),
+      },
+      { new: true },
+    );
   };
 
   /**
@@ -238,7 +269,9 @@ module.exports = () => {
     countUserOrders,
     updateOrderStatus,
     cancelOrder,
-    updatePaymentStatus,
+    markOrderPaid,
+    markOrderPaymentFailed,
+    recordRefund,
     getAllOrders,
     canReviewProduct,
     getDeliveredOrderWithProduct,

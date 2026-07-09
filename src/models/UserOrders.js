@@ -95,6 +95,16 @@ const UserOrdersSchema = new Schema(
     razorpaySignature: { type: String, default: "" },
     paidAt: { type: Date },
 
+    // ---------------- REFUND ----------------
+    refundId: { type: String, default: "" },
+    refundAmount: { type: Number, default: 0 },
+    refundStatus: {
+      type: String,
+      enum: ["none", "initiated", "processed", "failed"],
+      default: "none",
+    },
+    refundedAt: { type: Date },
+
     // ---------------- TIMINGS ----------------
     deliveryDate: { type: Date },
     deliveredAt: { type: Date },

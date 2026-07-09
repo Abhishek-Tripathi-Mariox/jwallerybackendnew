@@ -120,7 +120,7 @@ module.exports = () => {
 
   const savePaymentConfig = async (req, res, next) => {
     console.log("SystemConfigController => savePaymentConfig");
-    const { provider, keyId, keySecret } = req.body;
+    const { provider, keyId, keySecret, webhookSecret } = req.body;
     const adminId = req.admin.id;
 
     if (!provider || !keyId || !keySecret) {
@@ -128,7 +128,7 @@ module.exports = () => {
       throw new Error("All payment configuration fields are required");
     }
 
-    const credentials = { keyId, keySecret };
+    const credentials = { keyId, keySecret, webhookSecret: webhookSecret || "" };
 
     await SystemConfigService().upsertConfig("payment", provider, credentials, adminId);
 

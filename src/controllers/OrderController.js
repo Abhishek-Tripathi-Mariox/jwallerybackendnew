@@ -2,28 +2,9 @@ const OrderService = require("../services/OrderService");
 const CartService = require("../services/CartService");
 const RazorpayService = require("../services/RazorpayService");
 const UserAddressService = require("../services/UserAddressService");
-const NotificationService = require("../services/NotificationService");
 const ChargeConfigService = require("../services/ChargeConfigService");
-const User = require("../models/User");
+const { awardLoyaltyPoints, safeNotify } = require("../util/orderNotifications");
 var ObjectId = require("mongoose").Types.ObjectId;
-
-// Loyalty program — award 1 point per ₹100 spent. Safe to fail silently.
-const awardLoyaltyPoints = async (userId, amount) => {
-  try {
-    const points = Math.floor(Number(amount || 0) / 100);
-    if (points > 0) {
-      await User.findByIdAndUpdate(userId, { $inc: { loyaltyPoints: points } });
-    }
-  } catch (e) {}
-};
-
-const safeNotify = async (payload) => {
-  try {
-    await NotificationService().createForUser(payload);
-  } catch (err) {
-    console.error("Notification create failed:", err.message);
-  }
-};
 
 module.exports = () => {
   /**
@@ -184,25 +165,26 @@ module.exports = () => {
       return next();
     }
 
-    // Update order payment status
-    const updatedOrder = await OrderService().updatePaymentStatus(orderId, {
-      status: "paid",
-      razorpayOrderId,
-      razorpayPaymentId,
-      razorpaySignature,
-    });
+    // Atomically flip pending -> paid. Returns null if the order was already
+    // marked paid (e.g. the webhook beat us to it, or this call is a retry) —
+    // in that case we don't re-award loyalty points or send a duplicate notification.
+    const updatedOrder = await OrderService().markOrderPaid(
+      { _id: orderId },
+      { razorpayOrderId, razorpayPaymentId, razorpaySignature },
+    );
 
-    // Award loyalty points once payment is confirmed
-    await awardLoyaltyPoints(userId, updatedOrder?.grandTotal);
+    if (updatedOrder) {
+      await awardLoyaltyPoints(userId, updatedOrder.grandTotal);
 
-    await safeNotify({
-      userId,
-      type: "order",
-      title: "Payment received",
-      message: `We've received your payment for order #${updatedOrder?.orderId || orderId}.`,
-      link: `/orders`,
-      orderId,
-    });
+      await safeNotify({
+        userId,
+        type: "order",
+        title: "Payment received",
+        message: `We've received your payment for order #${updatedOrder.orderId || orderId}.`,
+        link: `/orders`,
+        orderId,
+      });
+    }
 
     req.rData = {};
     req.msg = "payment_verified";
@@ -279,14 +261,31 @@ module.exports = () => {
     const { id } = req.params;
 
     try {
-      const order = await OrderService().cancelOrder(id, userId, reason);
+      let order = await OrderService().cancelOrder(id, userId, reason);
 
-      // If payment was made, initiate refund
+      // If payment was made, initiate refund and track its outcome on the order
       if (order.paymentStatus === "paid" && order.razorpayPaymentId) {
-        await RazorpayService().refundPayment(
+        const refund = await RazorpayService().refundPayment(
           order.razorpayPaymentId,
           order.grandTotal,
         );
+
+        order = await OrderService().recordRefund(order._id, {
+          refundId: refund.success ? refund.refund.id : "",
+          amount: order.grandTotal,
+          status: refund.success
+            ? refund.refund.status === "processed"
+              ? "processed"
+              : "initiated"
+            : "failed",
+        });
+
+        if (!refund.success) {
+          console.error(
+            `Refund failed for order ${id} (payment ${order.razorpayPaymentId}):`,
+            refund.error,
+          );
+        }
       }
 
       req.rData = order;

@@ -18,6 +18,7 @@ const getRazorpayCredentials = async () => {
   return {
     keyId: process.env.RAZORPAY_KEY_ID || "",
     keySecret: process.env.RAZORPAY_KEY_SECRET || "",
+    webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET || "",
   };
 };
 
@@ -170,6 +171,37 @@ module.exports = () => {
     return creds.keyId;
   };
 
+  /**
+   * Verify a Razorpay webhook request's `x-razorpay-signature` header.
+   * This is a *different* HMAC than verifyPayment's checkout signature — it's
+   * computed over the raw webhook request body using the separate webhook
+   * secret configured in the Razorpay dashboard (Settings → Webhooks).
+   */
+  const verifyWebhookSignature = async (rawBody, signature) => {
+    const creds = await getRazorpayCredentials();
+
+    if (!creds.webhookSecret) {
+      return { valid: false, reason: "webhook_secret_not_configured" };
+    }
+    if (!signature) {
+      return { valid: false, reason: "missing_signature" };
+    }
+
+    const expected = crypto
+      .createHmac("sha256", creds.webhookSecret)
+      .update(rawBody)
+      .digest("hex");
+
+    const expectedBuf = Buffer.from(expected);
+    const actualBuf = Buffer.from(signature);
+
+    if (expectedBuf.length !== actualBuf.length) {
+      return { valid: false, reason: "invalid_signature" };
+    }
+
+    return { valid: crypto.timingSafeEqual(expectedBuf, actualBuf) };
+  };
+
   return {
     createOrder,
     verifyPayment,
@@ -177,5 +209,6 @@ module.exports = () => {
     refundPayment,
     getOrderDetails,
     getKeyId,
+    verifyWebhookSignature,
   };
 };

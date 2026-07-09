@@ -3,7 +3,16 @@ require("dotenv").config();
 require("./src/models"); // Establish MongoDB connection
 const PORT = process.env.PORT || 9110;
 const app = express();
-app.use(express.json());
+// `verify` stashes the raw request bytes on req.rawBody, needed by the
+// Razorpay webhook route to check the x-razorpay-signature HMAC (which is
+// computed over the exact raw payload, not the re-serialized parsed object).
+app.use(
+  express.json({
+    verify: (req, res, buf) => {
+      req.rawBody = buf;
+    },
+  }),
+);
 
 // ✅ Log all incoming requests
 app.use((req, res, next) => {
