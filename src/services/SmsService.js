@@ -94,6 +94,7 @@ module.exports = () => {
           {
             mobiles: mobile,
             VAR1: String(otp || ""),
+            OTP: String(otp || ""),
           },
         ],
       };
