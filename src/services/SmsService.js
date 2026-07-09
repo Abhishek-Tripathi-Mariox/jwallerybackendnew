@@ -2,6 +2,22 @@ const SystemConfig = require("../models/SystemConfig");
 const { decryptObject } = require("../util/encryption");
 
 module.exports = () => {
+  const resolveMsg91Config = () => {
+    const authKey = process.env.MSG91_AUTH_KEY || process.env.MSG91_AUTHKEY || "";
+    const templateId =
+      process.env.MSG91_TEMPLATE_ID ||
+      process.env.MSG91_DLT_TEMPLATE_ID ||
+      process.env.DLT_TEMPLATE_ID ||
+      "";
+    const senderId = process.env.MSG91_SENDER_ID || process.env.MSG91_DLT_SENDER_ID || "";
+
+    return {
+      authKey,
+      templateId,
+      senderId,
+    };
+  };
+
   const getSmsConfig = async () => {
     const config = await SystemConfig.findOne({
       configType: "sms",
@@ -9,6 +25,15 @@ module.exports = () => {
     });
 
     if (!config) {
+      // Fallback to .env MSG91 credentials so OTP works even before an admin
+      // configures SMS in the panel.
+      const envConfig = resolveMsg91Config();
+      if (envConfig.authKey || envConfig.templateId || envConfig.senderId) {
+        return {
+          provider: "msg91",
+          ...envConfig,
+        };
+      }
       console.log("SMS config not found or inactive");
       return null;
     }
@@ -43,41 +68,66 @@ module.exports = () => {
     try {
       const { authKey, templateId, senderId } = config;
 
+      if (!authKey || !templateId) {
+        return {
+          success: false,
+          message: "MSG91 config incomplete. Please set auth key and approved OTP template id.",
+        };
+      }
+
       // MSG91 expects mobile as concatenated digits only (e.g. "919999999999").
       // Callers may pass either "+91" or "91" — strip non-digits before joining.
       const cc = String(countryCode || "91").replace(/\D/g, "");
       const num = String(mobileNumber || "").replace(/\D/g, "");
       const mobile = `${cc}${num}`;
 
-      // MSG91 Send OTP API
-      const url = `https://control.msg91.com/api/v5/otp`;
+      // MSG91 Send SMS (flow) API — the dedicated /v5/otp endpoint requires a
+      // template registered under MSG91's separate "OTP" section, which this
+      // account doesn't have. The DLT-verified SMS template works via /v5/flow
+      // instead, with the OTP passed positionally as VAR1.
+      const url = "https://control.msg91.com/api/v5/flow";
 
       const payload = {
-        template_id: templateId,
-        mobile,
-        sender: senderId,
-        otp: otp,
+        template_id: String(templateId),
+        short_url: "0",
+        recipients: [
+          {
+            mobiles: mobile,
+            VAR1: String(otp || ""),
+          },
+        ],
       };
 
       const response = await fetch(url, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          accept: "application/json",
           authkey: authKey,
+          "content-type": "application/json",
         },
         body: JSON.stringify(payload),
       });
 
       const data = await response.json();
-      console.log("MSG91 OTP Request:", { mobile, sender: senderId, template_id: templateId });
+      console.log("MSG91 OTP Request:", {
+        url,
+        mobile,
+        sender: senderId,
+        template_id: templateId,
+      });
+
+      console.log("MSG91 OTP HTTP Status:", response.status);
       console.log("MSG91 OTP Response:", data);
 
-      if (data.type === "success") {
+      if (response.ok && data.type === "success") {
         return { success: true, message: "OTP sent successfully" };
       } else {
         return {
           success: false,
-          message: data.message || "Failed to send OTP",
+          message:
+            data.message ||
+            data.error ||
+            `Failed to send OTP via MSG91 (HTTP ${response.status})`,
           raw: data,
         };
       }
@@ -96,7 +146,12 @@ module.exports = () => {
 
     try {
       const { authKey } = config;
-      const url = `https://control.msg91.com/api/v5/otp/verify?mobile=${countryCode}${mobileNumber}&otp=${otp}`;
+      const mobile = `${String(countryCode || "91").replace(/\D/g, "")}${String(
+        mobileNumber || ""
+      ).replace(/\D/g, "")}`;
+      const url = `https://control.msg91.com/api/v5/otp/verify?mobile=${encodeURIComponent(
+        mobile
+      )}&otp=${encodeURIComponent(String(otp || ""))}`;
 
       const response = await fetch(url, {
         method: "GET",
@@ -109,7 +164,7 @@ module.exports = () => {
       console.log("MSG91 Verify Response:", data);
 
       return {
-        success: data.type === "success",
+        success: response.ok && data.type === "success",
         message: data.message || "Verification result",
       };
     } catch (error) {

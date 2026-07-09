@@ -1,5 +1,6 @@
 const SystemConfigService = require("../services/SystemConfigService");
 const SmsService = require("../services/SmsService");
+const helpers = require("../util/helpers.js");
 
 module.exports = () => {
   const getSmsConfig = async (req, res, next) => {
@@ -99,7 +100,7 @@ module.exports = () => {
       throw new Error("Mobile number is required");
     }
 
-    const testOtp = "123456";
+    const testOtp = helpers().generateOTP();
     const result = await SmsService().sendOtp(mobileNumber, testOtp, countryCode);
 
     req.rData = result;
