@@ -251,6 +251,14 @@ userRouter.get(
   ResponseMiddleware,
 );
 
+// Camera search — photo upload (multipart), so POST rather than GET.
+userRouter.post(
+  "/products/image-search",
+  AuthMiddleware().optionalUserToken,
+  ErrorHandlerMiddleware(ProductController().imageSearchProducts),
+  ResponseMiddleware,
+);
+
 userRouter.get(
   "/products/new-arrivals",
   AuthMiddleware().optionalUserToken,

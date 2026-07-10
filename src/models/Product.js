@@ -110,6 +110,15 @@ const ProductsSchema = new Schema(
 
     // ---------------- SEO (optional but useful) ----------------
     slug: { type: String, unique: true },
+
+    // ---------------- CAMERA / VISUAL SEARCH ----------------
+    // Multimodal embedding (Vertex AI multimodalembedding@001, 1408-dim) of
+    // productImages[0], used for cosine-similarity matching against a photo
+    // uploaded via the app's camera search. Absent until the backfill script
+    // or a product create/update successfully calls Vertex AI. Excluded from
+    // normal reads (select: false) since it's large and only needed by the
+    // image-search query itself.
+    imageEmbedding: { type: [Number], select: false },
   },
   { timestamps: true }
 );

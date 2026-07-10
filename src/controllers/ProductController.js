@@ -2,7 +2,17 @@ const CategoryService = require("../services/CategoryService");
 const ProductService = require("../services/ProductService");
 const WishlistService = require("../services/WishlistService");
 const { decorateWithLiveRate } = require("../util/goldPricing");
+const {
+  getImageEmbedding,
+  cosineSimilarity,
+} = require("../util/vertexVision");
+const Products = require("../models/Product");
 var ObjectId = require("mongoose").Types.ObjectId;
+
+// Below this similarity score a match is treated as noise rather than a
+// genuine visual match — tuned for multimodalembedding@001's typical range.
+const IMAGE_SEARCH_MIN_SCORE = 0.5;
+const IMAGE_SEARCH_LIMIT = 20;
 
 module.exports = () => {
   /**
@@ -229,6 +239,72 @@ module.exports = () => {
   };
 
   /**
+   * Camera / visual search — takes an uploaded photo, embeds it via Vertex
+   * AI, and returns products whose own image embedding is most similar
+   * (cosine similarity) above IMAGE_SEARCH_MIN_SCORE. Best-effort: if Vertex
+   * AI isn't configured or the call fails, responds with an empty result
+   * list rather than an error so the app can show "no matches" gracefully.
+   */
+  const imageSearchProducts = async (req, res, next) => {
+    console.log("ProductController => imageSearchProducts");
+
+    if (!req.files || !req.files.image) {
+      req.rCode = 0;
+      req.msg = "image_file_required";
+      return next();
+    }
+
+    const { userId } = req.body;
+    const file = Array.isArray(req.files.image)
+      ? req.files.image[0]
+      : req.files.image;
+
+    const queryEmbedding = await getImageEmbedding(file.data.toString("base64"));
+    if (!queryEmbedding) {
+      req.rData = { products: [] };
+      req.msg = "success";
+      return next();
+    }
+
+    const candidates = await Products.find({
+      isActive: true,
+      isDeleted: { $ne: true },
+      imageEmbedding: { $exists: true, $ne: [] },
+    })
+      .select("+imageEmbedding")
+      .populate("categoryId", "categoryName")
+      .lean();
+
+    const scored = candidates
+      .map((p) => ({
+        product: p,
+        score: cosineSimilarity(queryEmbedding, p.imageEmbedding),
+      }))
+      .filter((s) => s.score >= IMAGE_SEARCH_MIN_SCORE)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, IMAGE_SEARCH_LIMIT)
+      .map((s) => {
+        const { imageEmbedding, ...product } = s.product;
+        return product;
+      });
+
+    let wishlistIds = [];
+    if (userId) {
+      wishlistIds = await WishlistService().getWishlistProductIds(userId);
+    }
+
+    const productsWithWishlist = scored.map((product) => ({
+      ...product,
+      isWishlisted: wishlistIds.includes(product._id.toString()),
+    }));
+    await decorateWithLiveRate(productsWithWishlist);
+
+    req.rData = { products: productsWithWishlist };
+    req.msg = "success";
+    next();
+  };
+
+  /**
    * Get new arrivals
    */
   const getNewArrivals = async (req, res, next) => {
@@ -395,6 +471,7 @@ module.exports = () => {
     getSubCategoriesPublic,
     getProductDetails,
     searchProducts,
+    imageSearchProducts,
     getNewArrivals,
     getFeaturedProducts,
   };

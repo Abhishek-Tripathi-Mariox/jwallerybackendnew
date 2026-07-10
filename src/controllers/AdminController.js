@@ -9,6 +9,7 @@ const SubCategoryService = require("../services/SubCategoryService");
 const ReelService = require("../services/ReelService");
 const RegexEscape = require("regex-escape");
 const { uploadFileToAws } = require("../util/s3");
+const { getImageEmbeddingFromUrl } = require("../util/vertexVision");
 const RazorpayService = require("../services/RazorpayService");
 const NotificationService = require("../services/NotificationService");
 
@@ -344,6 +345,12 @@ module.exports = () => {
         const result = await uploadFileToAws(file);
         productData.productImages.push({ url: result.images });
       }
+      // Best-effort — camera search just won't match this product if Vertex
+      // AI isn't configured or the call fails; it never blocks the save.
+      const embedding = await getImageEmbeddingFromUrl(
+        productData.productImages[0].url,
+      );
+      if (embedding) productData.imageEmbedding = embedding;
     }
 
     // Handle 360° turntable frames — uploaded in the order the admin
@@ -423,6 +430,10 @@ module.exports = () => {
         const result = await uploadFileToAws(file);
         update.productImages.push({ url: result.images });
       }
+      const embedding = await getImageEmbeddingFromUrl(
+        update.productImages[0].url,
+      );
+      if (embedding) update.imageEmbedding = embedding;
     }
 
     if (req.files && req.files.rotationImages) {
