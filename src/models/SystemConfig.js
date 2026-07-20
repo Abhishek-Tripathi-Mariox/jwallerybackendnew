@@ -5,7 +5,7 @@ const SystemConfigSchema = new Schema(
   {
     configType: {
       type: String,
-      enum: ["sms", "email", "payment", "google_maps", "firebase", "support"],
+      enum: ["sms", "email", "payment", "google_maps", "firebase", "firebase_admin", "support"],
       required: [true, "Config type is required!"],
       unique: true,
     },

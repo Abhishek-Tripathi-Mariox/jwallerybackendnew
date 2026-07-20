@@ -149,6 +149,15 @@ userRouter.get(
   ResponseMiddleware,
 );
 
+// Map pin-drop -> address fields (city/state/pincode), server-side so the
+// Google Maps key never needs to be exposed to the app for direct REST use.
+userRouter.post(
+  "/geocode/reverse",
+  AuthMiddleware().verifyUserToken,
+  ErrorHandlerMiddleware(UserController().reverseGeocodeAddress),
+  ResponseMiddleware,
+);
+
 userRouter.get(
   "/address/:id",
   AuthMiddleware().verifyUserToken,

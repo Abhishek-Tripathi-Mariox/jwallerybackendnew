@@ -1,5 +1,7 @@
 const Notification = require("../models/Notification");
+const User = require("../models/User");
 const mongoose = require("mongoose");
+const { sendPushToToken, sendPushToTokens } = require("../util/firebaseAdmin");
 
 const toObjectId = (id) =>
   id && !(id instanceof mongoose.Types.ObjectId)
@@ -12,7 +14,7 @@ module.exports = () => {
    */
   const createForUser = async ({ userId, type = "system", title, message, link = "", orderId = null, createdBy = null }) => {
     if (!userId) throw new Error("userId is required");
-    return Notification.create({
+    const notification = await Notification.create({
       userId: toObjectId(userId),
       type,
       title,
@@ -21,13 +23,30 @@ module.exports = () => {
       orderId: orderId ? toObjectId(orderId) : null,
       createdBy: createdBy ? toObjectId(createdBy) : null,
     });
+
+    // Push is best-effort — a failed/unconfigured send must never fail the
+    // notification write itself (the in-app bell already has it either way).
+    try {
+      const user = await User.findById(userId).select("deviceToken notificationAllowed");
+      if (user?.deviceToken && user.notificationAllowed) {
+        await sendPushToToken(user.deviceToken, {
+          title,
+          body: message,
+          data: { type, link, notificationId: String(notification._id), orderId: orderId ? String(orderId) : "" },
+        });
+      }
+    } catch (error) {
+      console.error("Push send for createForUser failed:", error.message);
+    }
+
+    return notification;
   };
 
   /**
    * Create a broadcast notification (userId=null) visible to every user.
    */
   const createBroadcast = async ({ type = "broadcast", title, message, link = "", createdBy = null }) => {
-    return Notification.create({
+    const notification = await Notification.create({
       userId: null,
       type,
       title,
@@ -35,6 +54,27 @@ module.exports = () => {
       link,
       createdBy: createdBy ? toObjectId(createdBy) : null,
     });
+
+    try {
+      const users = await User.find({
+        isActive: true,
+        isDeleted: { $ne: true },
+        notificationAllowed: true,
+        deviceToken: { $nin: [null, ""] },
+      }).select("deviceToken");
+      const tokens = users.map((u) => u.deviceToken);
+      if (tokens.length > 0) {
+        await sendPushToTokens(tokens, {
+          title,
+          body: message,
+          data: { type, link, notificationId: String(notification._id) },
+        });
+      }
+    } catch (error) {
+      console.error("Push send for createBroadcast failed:", error.message);
+    }
+
+    return notification;
   };
 
   /**

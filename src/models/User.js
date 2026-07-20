@@ -68,6 +68,17 @@ const UserSchema = new Schema(
       type: Boolean,
       default: true,
     },
+    // FCM registration token for push notifications — replaced whenever the
+    // app (re)registers (login, token refresh, reinstall).
+    deviceToken: {
+      type: String,
+      default: "",
+    },
+    deviceType: {
+      type: String,
+      enum: ["android", "ios", ""],
+      default: "",
+    },
     // Loyalty program — points earned from purchases.
     loyaltyPoints: {
       type: Number,

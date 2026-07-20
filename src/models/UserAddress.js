@@ -38,6 +38,14 @@ const UserAddressSchema = new Schema(
       type: Number,
       required: "pinCode require!",
     },
+    // Optional — set when the address was picked via the map (pin-drop),
+    // absent for addresses typed in manually.
+    latitude: {
+      type: Number,
+    },
+    longitude: {
+      type: Number,
+    },
     addressType: {
       type: String,
       required: true,

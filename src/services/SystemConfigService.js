@@ -32,6 +32,16 @@ module.exports = () => {
     };
   };
 
+  // Unmasked credentials for internal server use only (e.g. initializing an
+  // SDK with a private key) — never return this from a controller/API response.
+  const getRawConfig = async (configType) => {
+    const config = await SystemConfig.findOne({ configType });
+    if (!config || !config.isActive) return null;
+
+    const credentialsObj = Object.fromEntries(config.credentials);
+    return decryptObject(credentialsObj);
+  };
+
   const upsertConfig = async (configType, provider, credentials, adminId) => {
     // Encrypt all credential values
     const encryptedCredentials = encryptObject(credentials);
@@ -104,6 +114,7 @@ module.exports = () => {
 
   return {
     getConfig,
+    getRawConfig,
     upsertConfig,
     toggleStatus,
     testSmsConfig,

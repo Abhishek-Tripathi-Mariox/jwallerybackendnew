@@ -5,7 +5,7 @@ const AuthController = require("../controllers/AuthController");
 const ErrorHandlerMiddleware = require("../middlewares/ErrorHandlerMiddleware");
 const ResponseMiddleware = require("../middlewares/ResponseMiddleware");
 const AuthMiddleware = require("../middlewares/AuthMiddleware");
-// const UserController = require("../controllers/UserController");
+const UserController = require("../controllers/UserController");
 
 authRouter.post(
   "/login",
@@ -28,12 +28,12 @@ authRouter.put(
   ResponseMiddleware
 );
 
-// authRouter.put(
-//   "/updateDeviceToken",
-//   AuthMiddleware().verifyUserToken,
-//   ErrorHandlerMiddleware(UserController().updateDeviceToken),
-//   ResponseMiddleware
-// );
+authRouter.put(
+  "/updateDeviceToken",
+  AuthMiddleware().verifyUserToken,
+  ErrorHandlerMiddleware(UserController().updateDeviceToken),
+  ResponseMiddleware
+);
 
 // authRouter.get(
 //   "/logout",

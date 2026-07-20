@@ -581,6 +581,28 @@ adminRouter.patch(
   ResponseMiddleware,
 );
 
+// ==================== FIREBASE ADMIN (server push credential) ====================
+adminRouter.get(
+  "/system-config/firebase-admin",
+  AuthMiddleware().verifyAdminToken,
+  ErrorHandlerMiddleware(SystemConfigController().getFirebaseAdminConfig),
+  ResponseMiddleware,
+);
+
+adminRouter.post(
+  "/system-config/firebase-admin",
+  AuthMiddleware().verifyAdminToken,
+  ErrorHandlerMiddleware(SystemConfigController().saveFirebaseAdminConfig),
+  ResponseMiddleware,
+);
+
+adminRouter.patch(
+  "/system-config/firebase-admin/status",
+  AuthMiddleware().verifyAdminToken,
+  ErrorHandlerMiddleware(SystemConfigController().toggleFirebaseAdminStatus),
+  ResponseMiddleware,
+);
+
 // ==================== SUPPORT CONTACT CONFIG ====================
 adminRouter.get(
   "/system-config/support",

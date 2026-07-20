@@ -1,6 +1,7 @@
 const UserService = require("../services/UserService");
 const fileUploadService = require("../util/s3");
 const UserAddressService = require("../services/UserAddressService");
+const { reverseGeocode } = require("../util/googleMaps");
 var ObjectId = require("mongoose").Types.ObjectId;
 
 module.exports = () => {
@@ -144,7 +145,7 @@ module.exports = () => {
   const addUserAddress = async (req, res, next) => {
     console.log("UserController => addUserAddress");
 
-    let { addressId, userId, fullName, address, addressLine1, houseNo, apartment, city, state, pinCode, pincode, zipCode, phone, email, addressType } = req.body;
+    let { addressId, userId, fullName, address, addressLine1, houseNo, apartment, city, state, pinCode, pincode, zipCode, phone, email, addressType, latitude, longitude } = req.body;
 
     // Normalize address fields from different mobile app screens
     if (!address) {
@@ -172,6 +173,10 @@ module.exports = () => {
       email,
       addressType: addressType || "Home",
     };
+    if (latitude !== undefined && longitude !== undefined) {
+      addressData.latitude = Number(latitude);
+      addressData.longitude = Number(longitude);
+    }
 
     let UserAddress;
     if (addressId) {
@@ -184,6 +189,27 @@ module.exports = () => {
     req.rData = UserAddress;
 
     req.msg = "success";
+    next();
+  };
+
+  /**
+   * Reverse-geocode a map pin (lat/lng) into address fields, for the
+   * "drop a pin" address picker. Best-effort — returns null fields rather
+   * than an error if Google Maps isn't configured, so the app can fall
+   * back to manual entry.
+   */
+  const reverseGeocodeAddress = async (req, res, next) => {
+    console.log("UserController => reverseGeocodeAddress");
+    const { latitude, longitude } = req.body;
+
+    if (latitude === undefined || longitude === undefined) {
+      req.statusCode = 400;
+      throw new Error("latitude and longitude are required");
+    }
+
+    const result = await reverseGeocode(Number(latitude), Number(longitude));
+    req.rData = result || { formattedAddress: "", city: "", state: "", pincode: "", country: "" };
+    req.msg = result ? "success" : "geocoding_unavailable";
     next();
   };
 
@@ -275,6 +301,7 @@ module.exports = () => {
      * Address
      */
     addUserAddress,
+    reverseGeocodeAddress,
     getUserAddress,
     getUserAddressDetail,
     deleteUserAddress,

@@ -233,6 +233,65 @@ module.exports = () => {
     next();
   };
 
+  // Firebase Admin SDK (service-account credential) — server-side only,
+  // used to actually send pushes via firebase-admin. Never returned to the
+  // mobile app (AppConfigController only whitelists the "firebase" client
+  // config, not "firebase_admin").
+  const getFirebaseAdminConfig = async (req, res, next) => {
+    console.log("SystemConfigController => getFirebaseAdminConfig");
+    const config = await SystemConfigService().getConfig("firebase_admin");
+    req.rData = config;
+    req.msg = config ? "config_fetched" : "no_config";
+    next();
+  };
+
+  const saveFirebaseAdminConfig = async (req, res, next) => {
+    console.log("SystemConfigController => saveFirebaseAdminConfig");
+    const { serviceAccountJson } = req.body;
+    const adminId = req.admin.id;
+
+    if (!serviceAccountJson) {
+      req.statusCode = 400;
+      throw new Error("Service account JSON is required");
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(serviceAccountJson);
+    } catch {
+      req.statusCode = 400;
+      throw new Error("Service account JSON is not valid JSON");
+    }
+    if (!parsed.project_id || !parsed.private_key || !parsed.client_email) {
+      req.statusCode = 400;
+      throw new Error(
+        "Service account JSON is missing project_id, private_key, or client_email",
+      );
+    }
+
+    await SystemConfigService().upsertConfig(
+      "firebase_admin",
+      "firebase",
+      { serviceAccountJson },
+      adminId,
+    );
+
+    req.rData = null;
+    req.msg = "config_saved";
+    next();
+  };
+
+  const toggleFirebaseAdminStatus = async (req, res, next) => {
+    const config = await SystemConfigService().toggleStatus("firebase_admin");
+    if (!config) {
+      req.statusCode = 404;
+      throw new Error("Firebase Admin configuration not found");
+    }
+    req.rData = { isActive: config.isActive };
+    req.msg = "status_updated";
+    next();
+  };
+
   // Support Contact Info Config
   const getSupportConfig = async (req, res, next) => {
     console.log("SystemConfigController => getSupportConfig");
@@ -302,6 +361,9 @@ module.exports = () => {
     getFirebaseConfig,
     saveFirebaseConfig,
     toggleFirebaseStatus,
+    getFirebaseAdminConfig,
+    saveFirebaseAdminConfig,
+    toggleFirebaseAdminStatus,
     getSupportConfig,
     saveSupportConfig,
     toggleSupportStatus,
