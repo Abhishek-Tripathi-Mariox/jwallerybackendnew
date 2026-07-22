@@ -130,6 +130,13 @@ userRouter.put(
   ErrorHandlerMiddleware(UserController().editUser),
   ResponseMiddleware,
 );
+// Self-service account deletion (Google Play Data Safety requirement).
+userRouter.delete(
+  "/account",
+  AuthMiddleware().verifyUserToken,
+  ErrorHandlerMiddleware(UserController().deleteAccount),
+  ResponseMiddleware,
+);
 
 // =====================================================
 // ADDRESS MANAGEMENT

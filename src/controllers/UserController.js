@@ -2,9 +2,45 @@ const UserService = require("../services/UserService");
 const fileUploadService = require("../util/s3");
 const UserAddressService = require("../services/UserAddressService");
 const { reverseGeocode } = require("../util/googleMaps");
+const User = require("../models/User");
+const UserAddress = require("../models/UserAddress");
 var ObjectId = require("mongoose").Types.ObjectId;
 
 module.exports = () => {
+  /**
+   * Self-service account deletion (Google Play Data Safety requirement —
+   * must work without needing the app installed, hence also exposed on the
+   * website). Anonymizes PII and soft-deletes rather than hard-deleting so
+   * existing orders (which reference this user) stay intact for business/
+   * tax records; the account itself becomes unusable (isActive: false is
+   * checked by verifyUserToken on every subsequent request).
+   */
+  const deleteAccount = async (req, res, next) => {
+    console.log("UserController => deleteAccount");
+    const { userId } = req.body;
+
+    await User.findByIdAndUpdate(userId, {
+      isDeleted: true,
+      isActive: false,
+      notificationAllowed: false,
+      fullName: "",
+      email: "",
+      profileImages: "",
+      dob: "",
+      address: "",
+      city: "",
+      pincode: "",
+      deviceToken: "",
+      deviceType: "",
+    });
+
+    await UserAddress.updateMany({ userId }, { isActive: false });
+
+    req.rData = null;
+    req.msg = "account_deleted";
+    next();
+  };
+
   const updateDeviceToken = async (req, res, next) => {
     console.log("UserController => updateDeviceToken");
     let { userId, deviceToken, deviceType } = req.body;
@@ -291,6 +327,7 @@ module.exports = () => {
      * Auth
      */
     updateDeviceToken,
+    deleteAccount,
     /**
      * Users
      */
