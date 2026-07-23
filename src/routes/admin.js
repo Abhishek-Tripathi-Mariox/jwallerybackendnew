@@ -278,6 +278,15 @@ adminRouter.patch(
   ResponseMiddleware,
 );
 
+// COD orders — mark cash collected. Online payments should never use this;
+// their paymentStatus is driven by Razorpay verification/webhook instead.
+adminRouter.patch(
+  "/orders/:id/payment-received",
+  AuthMiddleware().verifyAdminToken,
+  ErrorHandlerMiddleware(AdminController().markOrderPaymentReceived),
+  ResponseMiddleware,
+);
+
 // ==================== PAYMENTS ====================
 adminRouter.get(
   "/payments",

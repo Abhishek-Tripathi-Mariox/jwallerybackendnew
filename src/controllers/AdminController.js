@@ -12,6 +12,7 @@ const RegexEscape = require("regex-escape");
 const { uploadFileToAws } = require("../util/s3");
 const { getImageEmbeddingFromUrl } = require("../util/vertexVision");
 const RazorpayService = require("../services/RazorpayService");
+const OrderService = require("../services/OrderService");
 const NotificationService = require("../services/NotificationService");
 
 const ORDER_STATUS_NOTIFY = {
@@ -645,6 +646,38 @@ module.exports = () => {
     next();
   };
 
+  /**
+   * Admin manually marks a COD order's payment as received (cash collected
+   * on delivery) — there's no Razorpay transaction to verify for COD, so
+   * unlike online payments this can never auto-update.
+   */
+  const markOrderPaymentReceived = async (req, res, next) => {
+    const order = await OrderService().markOrderPaidManually(req.params.id, req.admin?.id);
+
+    if (!order) {
+      req.statusCode = 400;
+      throw new Error("Order not found or already marked paid");
+    }
+
+    try {
+      await NotificationService().createForUser({
+        userId: order.userId,
+        type: "order",
+        title: "Payment received",
+        message: `We've received your payment for order #${order.orderId || order._id}.`,
+        link: `/orders`,
+        orderId: order._id,
+        createdBy: req.admin?.id,
+      });
+    } catch (err) {
+      console.error("Payment received notification failed:", err.message);
+    }
+
+    req.rData = order;
+    req.msg = "success";
+    next();
+  };
+
   // ==================== PAYMENTS ====================
 
   const getPayments = async (req, res, next) => {
@@ -1196,6 +1229,7 @@ module.exports = () => {
     getOrders,
     getOrderById,
     updateOrderStatus,
+    markOrderPaymentReceived,
     getPayments,
     getPaymentStats,
     // Banners

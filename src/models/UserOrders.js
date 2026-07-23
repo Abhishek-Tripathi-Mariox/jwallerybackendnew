@@ -95,6 +95,11 @@ const UserOrdersSchema = new Schema(
     razorpaySignature: { type: String, default: "" },
     paidAt: { type: Date },
 
+    // Set when an admin manually marks a COD order as paid (cash collected
+    // on delivery) — distinguishes that from a Razorpay-verified payment,
+    // which never sets this.
+    paymentMarkedBy: { type: Schema.Types.ObjectId, ref: "Admin", default: null },
+
     // ---------------- REFUND ----------------
     refundId: { type: String, default: "" },
     refundAmount: { type: Number, default: 0 },

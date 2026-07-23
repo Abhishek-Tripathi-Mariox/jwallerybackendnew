@@ -2,6 +2,7 @@ const Razorpay = require("razorpay");
 const crypto = require("crypto");
 const SystemConfig = require("../models/SystemConfig");
 const { decryptObject } = require("../util/encryption");
+const { logRazorpay } = require("../util/razorpayLogger");
 
 const getRazorpayCredentials = async () => {
   const config = await SystemConfig.findOne({
@@ -46,6 +47,13 @@ module.exports = () => {
 
       const order = await razorpay.orders.create(options);
 
+      logRazorpay("order_created", {
+        razorpayOrderId: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        receipt: order.receipt,
+      });
+
       return {
         success: true,
         orderId: order.id,
@@ -55,6 +63,7 @@ module.exports = () => {
       };
     } catch (error) {
       console.error("Razorpay create order error:", error);
+      logRazorpay("order_create_failed", { error: error.message });
       return {
         success: false,
         error: error.message,
@@ -81,6 +90,11 @@ module.exports = () => {
 
       const isValid = expectedSignature === razorpaySignature;
 
+      logRazorpay(isValid ? "payment_verified" : "payment_verify_failed", {
+        razorpayOrderId,
+        razorpayPaymentId,
+      });
+
       return {
         success: isValid,
         message: isValid
@@ -89,6 +103,11 @@ module.exports = () => {
       };
     } catch (error) {
       console.error("Razorpay verify payment error:", error);
+      logRazorpay("payment_verify_error", {
+        razorpayOrderId,
+        razorpayPaymentId,
+        error: error.message,
+      });
       return {
         success: false,
         error: error.message,
@@ -130,12 +149,20 @@ module.exports = () => {
 
       const refund = await razorpay.payments.refund(paymentId, refundOptions);
 
+      logRazorpay("refund_created", {
+        paymentId,
+        refundId: refund.id,
+        amount: refund.amount,
+        status: refund.status,
+      });
+
       return {
         success: true,
         refund,
       };
     } catch (error) {
       console.error("Razorpay refund error:", error);
+      logRazorpay("refund_failed", { paymentId, error: error.message });
       return {
         success: false,
         error: error.message,

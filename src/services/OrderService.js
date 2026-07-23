@@ -183,6 +183,23 @@ module.exports = () => {
   };
 
   /**
+   * Admin marks a COD order's cash as collected. Same idempotency guard as
+   * markOrderPaid, but records who did it (paymentMarkedBy) instead of
+   * Razorpay fields, since there's no gateway transaction behind this.
+   */
+  const markOrderPaidManually = (orderId, adminId) => {
+    return UserOrders.findOneAndUpdate(
+      { _id: orderId, paymentStatus: { $ne: "paid" } },
+      {
+        paymentStatus: "paid",
+        paidAt: new Date(),
+        paymentMarkedBy: adminId,
+      },
+      { new: true },
+    );
+  };
+
+  /**
    * Mark a still-pending order's payment as failed. Only transitions from
    * "pending" so it can never clobber an order a later/earlier event already
    * marked paid (Razorpay can fire failed for an abandoned retry attempt).
@@ -270,6 +287,7 @@ module.exports = () => {
     updateOrderStatus,
     cancelOrder,
     markOrderPaid,
+    markOrderPaidManually,
     markOrderPaymentFailed,
     recordRefund,
     getAllOrders,
