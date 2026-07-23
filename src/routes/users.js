@@ -74,6 +74,13 @@ userRouter.get(
   ResponseMiddleware,
 );
 
+// Store locations (public "Store Locator")
+userRouter.get(
+  "/stores",
+  ErrorHandlerMiddleware(HomeScreenController().getStoresPublic),
+  ResponseMiddleware,
+);
+
 // Contact form (public) — anyone can submit, no auth required.
 userRouter.post(
   "/contact",

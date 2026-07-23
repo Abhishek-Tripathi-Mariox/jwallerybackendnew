@@ -336,6 +336,49 @@ adminRouter.patch(
   ResponseMiddleware,
 );
 
+// ==================== STORES (Store Locator) ====================
+adminRouter.get(
+  "/stores",
+  AuthMiddleware().verifyAdminToken,
+  ErrorHandlerMiddleware(AdminController().getStores),
+  ResponseMiddleware,
+);
+
+adminRouter.get(
+  "/stores/:id",
+  AuthMiddleware().verifyAdminToken,
+  ErrorHandlerMiddleware(AdminController().getStoreById),
+  ResponseMiddleware,
+);
+
+adminRouter.post(
+  "/stores",
+  AuthMiddleware().verifyAdminToken,
+  ErrorHandlerMiddleware(AdminController().createStore),
+  ResponseMiddleware,
+);
+
+adminRouter.put(
+  "/stores/:id",
+  AuthMiddleware().verifyAdminToken,
+  ErrorHandlerMiddleware(AdminController().updateStore),
+  ResponseMiddleware,
+);
+
+adminRouter.delete(
+  "/stores/:id",
+  AuthMiddleware().verifyAdminToken,
+  ErrorHandlerMiddleware(AdminController().deleteStore),
+  ResponseMiddleware,
+);
+
+adminRouter.patch(
+  "/stores/:id/status",
+  AuthMiddleware().verifyAdminToken,
+  ErrorHandlerMiddleware(AdminController().toggleStoreStatus),
+  ResponseMiddleware,
+);
+
 // ==================== CUSTOMER REVIEWS ====================
 adminRouter.get(
   "/customer-reviews",
@@ -556,6 +599,14 @@ adminRouter.patch(
   "/system-config/google-maps/status",
   AuthMiddleware().verifyAdminToken,
   ErrorHandlerMiddleware(SystemConfigController().toggleGoogleMapsStatus),
+  ResponseMiddleware,
+);
+
+// Raw (unmasked) key, for embedding the Maps JS SDK in the admin panel.
+adminRouter.get(
+  "/system-config/google-maps/key",
+  AuthMiddleware().verifyAdminToken,
+  ErrorHandlerMiddleware(SystemConfigController().getGoogleMapsKey),
   ResponseMiddleware,
 );
 

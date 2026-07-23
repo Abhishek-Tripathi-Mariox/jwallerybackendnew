@@ -6,6 +6,7 @@ const CustomerReviewService = require("../services/CustomerReviewService");
 const ReelService = require("../services/ReelService");
 const WishlistService = require("../services/WishlistService");
 const SystemConfigService = require("../services/SystemConfigService");
+const Store = require("../models/Store");
 const { computeGoldPrice } = require("../util/goldPricing");
 
 module.exports = () => {
@@ -376,6 +377,21 @@ module.exports = () => {
   };
 
   /**
+   * Get active store locations (public "Store Locator")
+   */
+  const getStoresPublic = async (req, res, next) => {
+    try {
+      req.rData = await Store.find({ isActive: true }).sort({ rank: 1 }).lean();
+      req.msg = "success";
+    } catch (error) {
+      console.error("GetStoresPublic Error:", error);
+      req.rCode = 0;
+      req.msg = "something_went_wrong";
+    }
+    next();
+  };
+
+  /**
    * Get active customer reviews (public "Customer View" section)
    */
   const getCustomerReviews = async (req, res, next) => {
@@ -413,6 +429,7 @@ module.exports = () => {
     getSpecialOffers,
     globalSearch,
     getSupportInfo,
+    getStoresPublic,
     getCustomerReviews,
     getReels,
   };

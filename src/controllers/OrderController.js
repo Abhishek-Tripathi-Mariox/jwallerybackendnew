@@ -332,17 +332,12 @@ module.exports = () => {
 
     const timeline = [];
 
-    // Add completed statuses
-    for (let i = 1; i <= Math.min(order.status, 4); i++) {
-      timeline.push({
-        status: i,
-        label: statusLabels[i],
-        isComplete: order.status >= i,
-        isCurrent: order.status === i,
-      });
-    }
-
     if (order.status === 5) {
+      // We don't track which step a cancelled order had reached, so only
+      // claim the one step every order guarantees (it was received) —
+      // marking Ready to Ship/On the Way/Delivered as "complete" here would
+      // falsely imply the order was delivered before being cancelled.
+      timeline.push({ status: 1, label: statusLabels[1], isComplete: true, isCurrent: false });
       timeline.push({
         status: 5,
         label: "Cancelled",
@@ -350,6 +345,15 @@ module.exports = () => {
         isCurrent: true,
         reason: order.cancelReason,
       });
+    } else {
+      for (let i = 1; i <= 4; i++) {
+        timeline.push({
+          status: i,
+          label: statusLabels[i],
+          isComplete: order.status >= i,
+          isCurrent: order.status === i,
+        });
+      }
     }
 
     req.rData = {

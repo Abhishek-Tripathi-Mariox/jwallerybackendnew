@@ -4,6 +4,7 @@ const User = require("../models/User");
 const UserOrders = require("../models/UserOrders");
 const Cart = require("../models/Cart");
 const Banners = require("../models/Banners");
+const Store = require("../models/Store");
 const CustomerReviewService = require("../services/CustomerReviewService");
 const SubCategoryService = require("../services/SubCategoryService");
 const ReelService = require("../services/ReelService");
@@ -792,6 +793,82 @@ module.exports = () => {
     next();
   };
 
+  // ==================== STORES (Store Locator) ====================
+
+  const getStores = async (req, res, next) => {
+    const { page = 1, limit = 50 } = req.query;
+    const skip = (page - 1) * limit;
+    const [stores, total] = await Promise.all([
+      Store.find().sort({ rank: 1 }).skip(skip).limit(Number(limit)).lean(),
+      Store.countDocuments(),
+    ]);
+    req.rData = { page: Number(page), limit: Number(limit), total, stores };
+    next();
+  };
+
+  const getStoreById = async (req, res, next) => {
+    const store = await Store.findById(req.params.id);
+    if (!store) { req.rCode = 5; req.msg = "not_found"; return next(); }
+    req.rData = store;
+    next();
+  };
+
+  const createStore = async (req, res, next) => {
+    const { name, address, city, state, pincode, phone, whatsapp, workingHours, latitude, longitude, rank } = req.body;
+    const store = await Store.create({
+      name,
+      address,
+      city: city || "",
+      state: state || "",
+      pincode: pincode || "",
+      phone: phone || "",
+      whatsapp: whatsapp || "",
+      workingHours: workingHours || "",
+      latitude: latitude !== undefined && latitude !== "" ? Number(latitude) : undefined,
+      longitude: longitude !== undefined && longitude !== "" ? Number(longitude) : undefined,
+      rank: rank !== undefined ? Number(rank) : 0,
+    });
+    req.rData = store;
+    req.msg = "success";
+    next();
+  };
+
+  const updateStore = async (req, res, next) => {
+    const { name, address, city, state, pincode, phone, whatsapp, workingHours, latitude, longitude, rank, isActive } = req.body;
+    const update = {};
+    if (name !== undefined) update.name = name;
+    if (address !== undefined) update.address = address;
+    if (city !== undefined) update.city = city;
+    if (state !== undefined) update.state = state;
+    if (pincode !== undefined) update.pincode = pincode;
+    if (phone !== undefined) update.phone = phone;
+    if (whatsapp !== undefined) update.whatsapp = whatsapp;
+    if (workingHours !== undefined) update.workingHours = workingHours;
+    if (latitude !== undefined) update.latitude = latitude === "" ? undefined : Number(latitude);
+    if (longitude !== undefined) update.longitude = longitude === "" ? undefined : Number(longitude);
+    if (rank !== undefined) update.rank = Number(rank);
+    if (isActive !== undefined) update.isActive = isActive;
+
+    const store = await Store.findByIdAndUpdate(req.params.id, update, { new: true });
+    req.rData = store;
+    req.msg = "success";
+    next();
+  };
+
+  const deleteStore = async (req, res, next) => {
+    await Store.findByIdAndDelete(req.params.id);
+    req.msg = "success";
+    next();
+  };
+
+  const toggleStoreStatus = async (req, res, next) => {
+    const store = await Store.findById(req.params.id);
+    store.isActive = !store.isActive;
+    await store.save();
+    req.rData = { isActive: store.isActive };
+    next();
+  };
+
   // ==================== SUBCATEGORIES ====================
 
   const getSubCategories = async (req, res, next) => {
@@ -1128,6 +1205,13 @@ module.exports = () => {
     updateBanner,
     deleteBanner,
     toggleBannerStatus,
+    // Stores
+    getStores,
+    getStoreById,
+    createStore,
+    updateStore,
+    deleteStore,
+    toggleStoreStatus,
     // Subcategories
     getSubCategories,
     createSubCategory,

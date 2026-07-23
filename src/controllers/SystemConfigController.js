@@ -189,6 +189,18 @@ module.exports = () => {
     next();
   };
 
+  // Unmasked key for embedding the Maps JavaScript SDK in the admin panel
+  // (e.g. the Store location picker). Admin-only — Maps JS keys are meant
+  // to be used client-side and are protected by HTTP-referrer restriction
+  // in Google Cloud Console, the same way the mobile app already gets this
+  // same raw key via AppConfigController.
+  const getGoogleMapsKey = async (req, res, next) => {
+    const raw = await SystemConfigService().getRawConfig("google_maps");
+    req.rData = { apiKey: raw?.apiKey || "" };
+    req.msg = "success";
+    next();
+  };
+
   const getFirebaseConfig = async (req, res, next) => {
     console.log("SystemConfigController => getFirebaseConfig");
     const config = await SystemConfigService().getConfig("firebase");
@@ -358,6 +370,7 @@ module.exports = () => {
     getGoogleMapsConfig,
     saveGoogleMapsConfig,
     toggleGoogleMapsStatus,
+    getGoogleMapsKey,
     getFirebaseConfig,
     saveFirebaseConfig,
     toggleFirebaseStatus,
